@@ -14,10 +14,18 @@ Acredito que o auto balanceamento seja o modelo ideal para sistemas em que as fi
 
 Por padrão nosso arquivo ***config/horizon.php*** o array de environments tem um formato semelhante ao da imagem a seguir
 
-<img style=" width: 500px; 
+<img style=" width: 650px; 
     margin-left: auto;
     margin-right: auto;" src="./images/supervisor-1.png">
 
-Se por exemplo as filas ***mail*** e ***images*** consomem muito tempo de processamento e possuem 500 jobs em espera e as demais filas estão zeradas, ambas terão mais processos para despacharem seus jobs. Em um dado momento a fila ***import*** ,que consome pouco tempo de processamento, tem um pico e fica com 3000 jobs em espera, neste momento parte dos processos sao descolocados para ***import*** afim de reduzi-la o quanto antes.
+Se por exemplo as filas ***books*** e ***images*** consomem muito tempo de processamento e possuem 500 jobs em espera e as demais filas estão zeradas, ambas terão mais processos para despacharem seus jobs. Em um dado momento a fila ***import***, que consome pouco tempo de processamento, tem um pico e fica com 3000 jobs em espera, neste momento parte dos processos sao descolocados para ***import*** afim de reduzi-la o quanto antes.
 
-O problema na situação é que o balanceamento tornará a execução  das filas ***mail*** e ***images*** mais lento ainda por ter que deslocar processos para a fila ***import***, para resolver isso devemos dividir nosso supervisor-1 em dois, um responsável por executar os jobs das filas com tempo de processamento e quantidade elementos em espera menor.   
+O problema na situação é que o balanceamento tornará a execução das filas ***books*** e ***images*** mais lento ainda por ter que deslocar processos para a fila ***import***. Para resolver isso devemos dividir nosso supervisor-1 em dois, um responsável por executar os jobs das filas com tempo de processamento e quantidade elementos em espera menor e outro com as filas de maior tempo de processamento e quantidades de jobs em espera, como mostrado na imagem a seguir.
+
+<img style=" width: 650px; 
+    margin-left: auto;
+    margin-right: auto;" src="./images/supervisor-2.png">
+
+Nesse novo modelo as filas ***default***, ***mail*** e ***import*** terão pelo menos um processo cada e a soma de todos os processos em todas as filas é de no máximo quatro, aqui também definimos o timeout para estas filas que é de 240 segundos com tolerância de 3 tentativas antes de falha. Essa estrutura garante que o balanceamento irá distribuir os processos disponíveis, de acordo com a necessidade, somente as filas descritas.
+
+As demais filas terão mais processos disponíveis com maior timeout, evitando que o balanceamento tire processos de quem já não tem tanto processamento e as filas tenham muitos jobs em estado espera comprometendo o funcionamento da aplicação.
