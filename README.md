@@ -2,7 +2,7 @@
 
 Se sua aplicação Laravel faz uso de filas e do [redis](https://redis.io/docs/about/), acrescentar o [Laravel Horizon](https://laravel.com/docs/master/horizon) pode ser uma opção interessante para trazer mais performasse e melhorar o gerenciamento dos jobs processados em sua aplicação.
 
-**OBS:** Nesta abordagem fizemos uso do laravel 6.0 e horizon 3.7.2
+**OBS:** Nesta abordagem fizemos uso do Laravel 6.0 e Horizon 3.7.2
 
 
 ## Dividir para conquistar
@@ -29,3 +29,31 @@ O problema na situação é que o balanceamento tornará a execução das filas 
 Nesse novo modelo as filas ***default***, ***mail*** e ***import*** terão pelo menos um processo cada e a soma de todos os processos em todas as filas é de no máximo quatro, aqui também definimos o timeout para estas filas que é de 240 segundos com tolerância de 3 tentativas antes de falha. Essa estrutura garante que o balanceamento irá distribuir os processos disponíveis, de acordo com a necessidade, somente as filas descritas.
 
 As demais filas terão mais processos disponíveis com maior timeout, evitando que o balanceamento tire processos de quem já não tem tanto processamento e as filas tenham muitos jobs em estado espera comprometendo o funcionamento da aplicação.
+
+### **Definindo o a conexão com o Redis**
+
+O arquivo ***queue.php*** é responsável por definir como o dever ser a conexão do banco de dados com as filas no Laravel, neste arquivo definimos como o Redis deve se conectar as filas monitoradas no Horizon, o arquivo terá o seguinte formato. Observe que no paramentro ***retry_after*** defini quanto tempo a conexão ficará aberta.
+
+```PHP
+'connections' => [
+    //outras conexões
+    'redis' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue'  => 'default',
+            'retry_after' => 600,
+        ],
+],
+```
+
+## O poder das tags
+
+De todas a vantagens apresentadas pelo uso do Laravel Horizon, para mim a melhor de todas é o uso de tags de monitoramento. Com elas podemos supervisionar a fila, o job e o model que foram executados permitindo saber qual teve sucesso ou falha, numero de execuções e a qual fila pertence aquele job.
+
+Por padrão o Horizon atribui uma tag para cada job que recebe um model, por exemplo se temos a fila import que é responsável por adicionar novos livros ao sistema, para cada livro inserido na fila o cria a seguinte tag **'App/Book:id'** onde **id** indica o índice do livro em sua tabela no banco de dados. 
+
+Essa comportamento tem seu valor, mas somente em sistemas bem construídos onde toda fila recebe um model especifico, para casos mais complexos eu prefiro criar tags manualmente, pois assim é possível ter uma visão ampla do funcionamento das filas/jobs e encontrar falhas em um curto prazo.
+
+### **Uma abordagem para tags**
+- tags
+- criação de commands
