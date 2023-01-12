@@ -52,8 +52,29 @@ De todas a vantagens apresentadas pelo uso do Laravel Horizon, para mim a melhor
 
 Por padrão o Horizon atribui uma tag para cada job que recebe um model, por exemplo se temos a fila import que é responsável por adicionar novos livros ao sistema, para cada livro inserido na fila o cria a seguinte tag **'App/Book:id'** onde **id** indica o índice do livro em sua tabela no banco de dados. 
 
-Essa comportamento tem seu valor, mas somente em sistemas bem construídos onde toda fila recebe um model especifico, para casos mais complexos eu prefiro criar tags manualmente, pois assim é possível ter uma visão ampla do funcionamento das filas/jobs e encontrar falhas em um curto prazo.
+Essa comportamento tem seu valor, mas somente em sistemas  onde toda fila recebe um model especifico, para casos mais complexos eu prefiro criar tags manualmente, pois assim é possível ter uma visão ampla do funcionamento das filas/jobs e encontrar falhas em um curto prazo.
 
 ### **Uma abordagem para tags**
-- tags
-- criação de commands
+
+Para criar tags manualmente em cada job você deve criar uma função publica de nome ***tags*** que deve retornar um array de strings, isso mesmo um job pode possuir uma ou mais tags, tornando sua busca mais ampla.
+
+Imagine que em um sistema de biblioteca exista um job de nome ***SendReturnAlert*** responsável por enviar um email de alerta pra que os usuários que tenham que devolver livros nos próximos 3 dias sua função construtora teria o seguinte formato.
+
+
+```PHP
+public function __construct(int $userId, int $bookId) {
+
+    $this->userId = $userId;
+    $this->bookId = $bookId;
+}
+```
+
+O padrão que uso no array de tags é colocar o nome do job como primeiro elemento seguido dos ids dos models associados e colocar nome da fila que job é processado por ultimo, para este exemplo teremos o seguinte resultado.
+
+```PHP
+public function tags() {
+    return ['SendReturnAlert','User:'. $this->userId,'Book:'. $this->bookId, 'default'];
+}
+```
+
+A partir de agora dentro do Horizon podemos pesquisar jobs processados com exito ou não que tenham sua origem no job ***SendReturnAlert***, no usuário, no livro ou na fila. Assim em caso de falha podemos identificar se problema tem origem na escrita do job, em algum dado do usuário, em alguma informação do livro ou na fila.    
