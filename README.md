@@ -6,11 +6,11 @@ Se sua aplicação Laravel faz uso de filas e do [redis](https://redis.io/docs/a
 
 
 ## Dividir para conquistar
-Ninguém melhor que você para saber quais filas possuem um  maior fluxo de entrada e quais possuem maior processamento, mas caso não tenha essa informação isso é só mais um motivo para usar o horizon, uma vez que ele gera métricas que sao apresentadas em um dashboard simples e intuitivo.
+Ninguém melhor que você para saber quais filas possuem um  maior fluxo de entrada e quais possuem maior processamento, mas caso não tenha essa informação isso é só mais um motivo para usar o horizon, uma vez que ele gera métricas que são apresentadas em um dashboard simples e intuitivo.
 
 Para tirar o máximo de proveito do balanceamento do horizon é necessário agrupar suas filas da melhor forma possível, caso ainda não tenha entendido bem como esse balanceamento funciona sugiro que leia esse artigo do [Zechariah Campbell](https://medium.com/@zechdc/laravel-horizon-number-of-workers-and-job-execution-order-21b9dbec72d7) que explica de maneira bem detalhada.
 
-Acredito que o auto balanceamento seja o modelo ideal para sistemas em que as filas tem picos de processamento em certos momentos do dia, assim mais processos são destinados para a fila com mais jobs em espera afim de zera ou deixa o numero de jobs em espera proximo aos das demais filas.
+Acredito que o auto balanceamento seja o modelo ideal para sistemas em que as filas tem picos de processamento em certos momentos do dia, assim mais processos são destinados para a fila com mais jobs em espera afim de zera ou deixa o número de jobs em espera próximo aos das demais filas.
 
 Por padrão nosso arquivo ***config/horizon.php*** o array de environments tem um formato semelhante ao da imagem a seguir
 
@@ -78,3 +78,20 @@ public function tags() {
 ```
 
 A partir de agora dentro do Horizon podemos pesquisar jobs processados com exito ou não que tenham sua origem no job ***SendReturnAlert***, no usuário, no livro ou na fila. Assim em caso de falha podemos identificar se problema tem origem na escrita do job, em algum dado do usuário, em alguma informação do livro ou na fila.    
+### **Usando commands**
+
+Em muitas situações precisamos reprocessar jobs falhados, na própria interface do laravel horizon é possível fazer a ação manualmente, o que não é muito viável, mas pode resolver casos muito pontuais. Uma abordagem um pouco mais pratica e de fácil implementação é criar um [**Command**](https://laravel.com/docs/6.x/artisan#writing-commands) que acesse todos os jobs falhados e faça o reprocessamento.
+
+Algo que não foi mencionado aqui e precisa ser explicado é quanto a persistência dos dados armazenado no horizon,  no arquivo ***config/horizon.php*** quanto tempos ficará arquivado os jobs recentes, completados, falhados recentemente, falhados e monitorados. Temos a seguinte configuração padrão do sistema.
+
+```PHP
+'trim' => [
+    'recent' => 60,
+    'completed' => 60,
+    'recent_failed' => 10080,
+    'failed' => 10080,
+    'monitored' => 10080,
+],
+```
+
+O número aqui representa a duração em minutos e pode ser customizado de acordo com a necessidade de sua aplicação, mas é importante que você saiba que quanto maior for esse valor, maior será o tamanho ocupado pelo disco do redis. Em casos estouro o horizon para de funcionar imediatamente comprometendo todo o funcionamento das filas.   
