@@ -94,4 +94,53 @@ Algo que não foi mencionado aqui e precisa ser explicado é quanto a persistên
 ],
 ```
 
-O número aqui representa a duração em minutos e pode ser customizado de acordo com a necessidade de sua aplicação, mas é importante que você saiba que quanto maior for esse valor, maior será o tamanho ocupado pelo disco do redis. Em casos estouro o horizon para de funcionar imediatamente comprometendo todo o funcionamento das filas.   
+O número aqui representa a duração em **minutos** e pode ser customizado de acordo com a necessidade de sua aplicação, mas é importante que você saiba que quanto maior for esse valor, maior será o tamanho ocupado pelo disco do redis. Em casos estouro o horizon para de funcionar imediatamente comprometendo todo o funcionamento das filas e consequentemente da aplicação.
+
+Com o command criado mudamos sua assinatura para receber como parâmetro opcional o nome do job que queremos reprocessar, assim quando executamos o command sem ele **todos** os jobs falhados serão reprocessados. Essa versão foi criada a partir do post do [Kodeas](https://kodeas.medium.com/programatically-retrying-failed-jobs-in-horizon-8acad3695b38)
+
+```PHP
+ protected $signature = 'horizon:retry-failed-jobs {jobName?}';
+```
+Em nossa função construtora recebemos **JobRepository** como parâmetro, que nada mais é que a interface criada pelo Laravel Horizon para acessar todas as informações dos jobs processados por Horizon, este é o resultado.
+
+```PHP
+public function __construct(JobRepository $jobs) {
+    parent::__construct();
+    $this->jobs = $jobs;
+}
+```
+
+Fazendo uso da interface obtemos o array de todos os jobs falhados e a partir daí podemos ter informações especificas de cada job como seu id, nome, fila que foi processado, data que foi falhado. Fica a seu critério escolher filtrar os jobs, aqui fiz preferencia por nome caso seja passado como parâmetro.
+
+Também fazemos uso da classe **RetryFailedJob** para reprocessar o job falhado a partir de seu id e da função **deleteFailed** para remover o job falhado como demonstrado no código a seguir.
+
+
+```PHP
+public function handle() {
+    $jobName = $this->argument('jobName');
+    
+    $failedJobs = $this->jobs->getFailed();
+
+    
+    if($jobName != NULL) {
+        foreach ($failedJobs as $failedJob) {
+
+            if (preg_match("/$jobName/i", $failedJob->name) ) {
+                
+                $id = $failedJob->id;
+                dispatch(new RetryFailedJob($id));
+                $this->jobs->deleteFailed($id);
+            } 
+        }
+    } else {
+        foreach ($failedJobs as $failedJob) {
+
+            $id = $failedJob->id;
+            dispatch(new RetryFailedJob($id));
+            $this->jobs->deleteFailed($id);        
+        }
+        
+    }
+}
+
+```
